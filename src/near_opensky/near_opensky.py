@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+from . import origin
 import sys
 import os
 from pathlib import Path
@@ -47,7 +48,7 @@ def run_opensky(radius: float):
     The function prints rich information about aircraft within the computed
     bounding box around a fixed origin point.
     """
-    origin = (41.6562, -0.8778)  # Basilica del Pilar coordinates
+    origin = (origin.ORIGIN_LAT, origin.ORIGIN_LON)  # Default coordinates from origin module
     bounding_box = calculate_bbox(origin[0], origin[1], radius)
 
     api = OpenSkyApi()
