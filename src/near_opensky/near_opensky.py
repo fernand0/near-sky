@@ -12,12 +12,54 @@ from rich import print
 from opensky_api import OpenSkyApi
 from geopy import distance
 from bs4 import BeautifulSoup
-import requests
-import time
+import os
 import math
+import time
 from . import opensky_auth as tokens
 
+# Pillow for image generation
+from PIL import Image, ImageDraw
+
 # Optional airports data for helper
+
+def generate_radar_image(positions, center_lat, center_lon, radius_km, output_file):
+    """Generate a simple radar‑style PNG showing aircraft positions.
+
+    * positions – list of (lat, lon) tuples for each aircraft
+    * center_lat/center_lon – geographic centre (origin)
+    * radius_km – radius of the search area (used to scale the image)
+    * output_file – filename to save the PNG image
+    """
+    size = 800  # pixels, square image
+    img = Image.new("RGB", (size, size), (0, 0, 0))
+    draw =Draw.Draw(img)
+    cx, cy = size // 2, size // 2
+    # Outer radar circle
+    draw.ellipse([cx - size // 2, cy - size // 2, cx + size // 2, cy + size // 2], outline="green")
+    # Center point
+    draw.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill="green")
+    for lat, lon in positions:
+        # distance and bearing from centre
+        dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
+        lat1 = math.radians(center_lat)
+        lon1 = math.radians(center_lon)
+        lat2 = math.radians(lat)
+        lon2 = math.radians(lon)
+        y = math.sin(lon2 - lon1) * math.cos(lat2)
+        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
+        bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
+        # Convert to pixel radius
+        r_pixels = (dist_km / radius_km) * (size / 2)
+        angle_rad = math.radians(bearing)
+        px = cx + r_pixels * math.sin(angle_rad)
+        py = cy - r_pixels * math.cos(angle_rad)
+        # Draw line from centre to aircraft
+        draw.line([cx, cy, px, py], fill="yellow")
+        # Draw aircraft point
+        draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
+    img.save(output_file)
+    print(f"[bold]Radar image saved to:[/bold] {output_file}")
+
 try:
     import airportsdata
     airports = airportsdata.load()
@@ -43,21 +85,25 @@ def calculate_bbox(lat, lon, radius_km):
 
 
 
-def run_opensky(radius: float):
+def run_opensky(radius: float, show_map: bool = False, generate_image: bool = False, output_file: str = "opensky_map.png"):
     """Core OpenSky logic (original script).
 
     The function prints rich information about aircraft within the computed
-    bounding box around a fixed origin point.
+    bounding box around a fixed origin point. If *show_map* is True, an OpenStreetMap
+    link for each aircraft's current position is also printed. If *generate_image*
+    is True, a static map image is generated and saved to *output_file*.
     """
     center = (orig.ORIGIN_LAT, orig.ORIGIN_LON)  # Default coordinates from origin module
+    positions = []  # Collect aircraft positions for static map generation
     bounding_box = calculate_bbox(center[0], center[1], radius)
-
     api = OpenSkyApi()
     states = api.get_states(bbox=bounding_box)
 
     if not (states and states.states):
         print("[bold red]No aircraft states returned.[/bold red]")
-        return 0
+        # No aircraft; continue to end for single return
+        result = 0
+        return result
 
     sorted_states = sorted(
         states.states,
@@ -133,9 +179,18 @@ def run_opensky(radius: float):
         else:
             print(f"[bold]Route:[/bold] {dep} ➡️ {arr}")
 
-        print(f"[bold]Flightradar:[/bold] https://www.flightradar24.com/{s.callsign}")
-        print(f"[bold]Opensky:[/bold] https://map.opensky-network.org/?icao={s.icao24}")
-        print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
+        # Map link per aircraft
+        if show_map:
+            osm_url = f"https://www.openstreetmap.org/?mlat={s.latitude}&mlon={s.longitude}#map=12/{s.latitude}/{s.longitude}"
+            print(f"[bold]Map:[/bold] {osm_url}")
+
+        # Collect positions for static map image
+        if generate_image:
+            positions.append((s.latitude, s.longitude))
+
+    # After processing all aircraft, generate static map if requested
+    if generate_image and positions:
+        generate_radar_image(positions, center[0], center[1], radius, output_file)
 
     return 0
 
@@ -147,11 +202,14 @@ def main() -> int:
     * **OpenSky mode** – otherwise it runs the original OpenSky flight fetcher.
     """
     parser = argparse.ArgumentParser(description="Hybrid CLI: OpenSky flight fetcher.")
+    parser.add_argument('--map', action='store_true', help='Print OpenStreetMap link for each aircraft position')
+    parser.add_argument('--map-image', action='store_true', help='Generate a static OpenStreetMap image with aircraft markers')
+    parser.add_argument('--output', type=str, default='opensky_map.png', help='Filename for the generated map image')
     parser.add_argument('--radius', type=float, default=25,
-                        help='Radius in km for the OpenSky bounding box (default 50)')
+                        help='Radius in km for the OpenStreetMap bounding box (default 50)')
     args = parser.parse_args()
     # Run OpenSky functionality with the provided or default radius
-    return run_opensky(args.radius)
+    return run_opensky(args.radius, args.map, args.map_image, args.output)
 
 if __name__ == '__main__':
     sys.exit(main())

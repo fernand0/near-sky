@@ -18,7 +18,8 @@ dependencies = [
     "geopy",
     "beautifulsoup4",
     "lxml",
-    "requests"
+    "requests",
+    "Pillow"
 ]
 
 [project.scripts]

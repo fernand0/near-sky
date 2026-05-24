@@ -16,9 +16,20 @@ near-opensky
 near-opensky --radius 120
 ```
 
-## Configuring the default origin
+### Configuring the default origin
 
 Edit `src/near_opensky/origin.py` and change the `ORIGIN_LAT` and `ORIGIN_LON` constants to the latitude and longitude you want the CLI to use as the centre of the search area.
+
+## Custom origin via CLI
+
+You can set a custom origin without editing the source code by using the new command‑line interface provided in `src/near_opensky/origin.py`.
+
+```bash
+python src/near_opensky/origin.py "City, Country"
+```
+
+Running this command updates the internal origin coordinates and prints the new values, e.g., `Origin set to (48.8566, 2.3522)` for Paris. The CLI will then use this location for subsequent `near-opensky` queries.
+
 
 ## Token handling
 
