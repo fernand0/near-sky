@@ -1,0 +1,16 @@
+# Python project .gitignore
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.dist-info/
+*.egg
+*.whl
+*.log
+.env
+.venv/
+.venv*/
+.vscode/
+.DS_Store
+*.sqlite3

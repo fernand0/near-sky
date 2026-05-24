@@ -1,0 +1,25 @@
+[project]
+name = "near-opensky"
+version = "0.1.0"
+description = "Hybrid CLI: file reader and OpenSky flight fetcher"
+requires-python = ">=3.10"
+authors = [{name = "User", email = "user@example.com"}]
+license = "MIT"
+readme = "README.md"
+keywords = ["cli", "opensky", "flight", "file-reader"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+dependencies = [
+    "rich",
+    "opensky-api @ git+https://github.com/openskynetwork/opensky-api.git#subdirectory=python",
+    "geopy",
+    "beautifulsoup4",
+    "lxml",
+    "requests"
+]
+
+[project.scripts]
+near-opensky = "near_opensky.near_opensky:main"
