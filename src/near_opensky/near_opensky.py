@@ -33,7 +33,7 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
     """
     size = 800  # pixels, square image
     img = Image.new("RGB", (size, size), (0, 0, 0))
-    draw =Draw.Draw(img)
+    draw = ImageDraw.Draw(img)
     cx, cy = size // 2, size // 2
     # Outer radar circle
     draw.ellipse([cx - size // 2, cy - size // 2, cx + size // 2, cy + size // 2], outline="green")
