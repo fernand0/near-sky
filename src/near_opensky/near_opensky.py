@@ -14,6 +14,7 @@ from geopy import distance
 from bs4 import BeautifulSoup
 import os
 import math
+import requests
 import time
 from . import opensky_auth as tokens
 
