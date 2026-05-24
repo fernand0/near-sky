@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-import argparse
-from . import origin
+from . import origin as orig
+
 import sys
 import os
 from pathlib import Path
+import argparse
 
 # Original OpenSky imports
 from rich import print
@@ -48,8 +49,8 @@ def run_opensky(radius: float):
     The function prints rich information about aircraft within the computed
     bounding box around a fixed origin point.
     """
-    origin = (origin.ORIGIN_LAT, origin.ORIGIN_LON)  # Default coordinates from origin module
-    bounding_box = calculate_bbox(origin[0], origin[1], radius)
+    center = (orig.ORIGIN_LAT, orig.ORIGIN_LON)  # Default coordinates from origin module
+    bounding_box = calculate_bbox(center[0], center[1], radius)
 
     api = OpenSkyApi()
     states = api.get_states(bbox=bounding_box)
@@ -60,7 +61,7 @@ def run_opensky(radius: float):
 
     sorted_states = sorted(
         states.states,
-        key=lambda s: distance.distance((s.latitude, s.longitude), origin).km,
+        key=lambda s: distance.distance((s.latitude, s.longitude), center).km,
         reverse=True,
     )
 
@@ -69,7 +70,7 @@ def run_opensky(radius: float):
         print(f"[bold]Origin:[/bold] {s.origin_country}")
         print(f"[bold]Altitude:[/bold] {s.geo_altitude}")
         print(
-            f"[bold]Distance:[/bold] {distance.distance((s.latitude, s.longitude), origin).km}\n"
+            f"[bold]Distance:[/bold] {distance.distance((s.latitude, s.longitude), center).km}\n"
             f"[bold]Status:[/bold] {'✅ Grounded' if getattr(s, 'on_ground', getattr(s, '__getitem__', lambda idx: None)(8) if hasattr(s, '__getitem__') else False) else '✈️ In‑flight'}"
         )
 
