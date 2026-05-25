@@ -19,14 +19,14 @@ import time
 from . import opensky_auth as tokens
 
 # Pillow for image generation
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 # Optional airports data for helper
 
 def generate_radar_image(positions, center_lat, center_lon, radius_km, output_file):
-    """Generate a simple radar‑style PNG showing aircraft positions.
+    """Generate a radar‑style PNG showing aircraft positions.
 
-    * positions – list of (lat, lon) tuples for each aircraft
+    * positions – list of (lat, lon, grounded) tuples where `grounded` is a boolean indicating if the aircraft is on the ground
     * center_lat/center_lon – geographic centre (origin)
     * radius_km – radius of the search area (used to scale the image)
     * output_file – filename to save the PNG image
@@ -34,13 +34,78 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
     size = 800  # pixels, square image
     img = Image.new("RGB", (size, size), (0, 0, 0))
     draw = ImageDraw.Draw(img)
+    font = ImageFont.load_default()
+
     cx, cy = size // 2, size // 2
-    # Outer radar circle
+    # Outer radar circle (full radius)
     draw.ellipse([cx - size // 2, cy - size // 2, cx + size // 2, cy + size // 2], outline="green")
     # Center point
     draw.ellipse([cx - 3, cy - 3, cx + 3, cy + 3], fill="green")
-    for lat, lon in positions:
+    # Concentric distance circles (5, 10, 25, 50 km) if within radius_km
+    for dist in (5, 10, 25, 50):
+        if dist < radius_km:
+            r = (dist / radius_km) * (size / 2)
+            draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline="green")
+    for lat, lon, grounded, dest in positions:
         # distance and bearing from centre
+        dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
+        lat1 = math.radians(center_lat)
+        lon1 = math.radians(center_lon)
+        lat2 = math.radians(lat)
+        lon2 = math.radians(lon)
+        y = math.sin(lon2 - lon1) * math.cos(lat2)
+        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
+        bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
+        # Convert to pixel radius
+        r_pixels = (dist_km / radius_km) * (size / 2)
+        angle_rad = math.radians(bearing)
+        px = cx + r_pixels * math.sin(angle_rad)
+        py = cy - r_pixels * math.cos(angle_rad)
+        # Center line removed – not needed for visual clarity
+        if grounded:
+            # Draw small square for grounded aircraft
+            sq_size = 6
+            draw.rectangle([px - sq_size/2, py - sq_size/2, px + sq_size/2, py + sq_size/2], fill="blue")
+        else:
+            # Draw arrowhead at aircraft position to indicate direction
+            arrow_len = 12  # pixels length of arrow tip
+            arrow_width = 5
+            # tip point further along bearing
+            tip_x = px + arrow_len * math.sin(angle_rad)
+            tip_y = py - arrow_len * math.cos(angle_rad)
+            # base corners perpendicular to bearing
+            left_x = px + arrow_width * math.cos(angle_rad)
+            left_y = py + arrow_width * math.sin(angle_rad)
+            right_x = px - arrow_width * math.cos(angle_rad)
+            right_y = py - arrow_width * math.sin(angle_rad)
+            draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
+        # Draw aircraft point
+        draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
+        # Write destination label if available
+        if dest:
+            draw.text((px + 6, py - 6), dest, fill="yellow")
+        continue
+        if grounded:
+            # Draw small square for grounded aircraft
+            sq_size = 6
+            draw.rectangle([px - sq_size/2, py - sq_size/2, px + sq_size/2, py + sq_size/2], fill="blue")
+        else:
+            # Draw arrowhead at aircraft position to indicate direction
+            arrow_len = 12  # pixels length of arrow tip
+            arrow_width = 5
+            # tip point further along bearing
+            tip_x = px + arrow_len * math.sin(angle_rad)
+            tip_y = py - arrow_len * math.cos(angle_rad)
+            # base corners perpendicular to bearing
+            left_x = px + arrow_width * math.cos(angle_rad)
+            left_y = py + arrow_width * math.sin(angle_rad)
+            right_x = px - arrow_width * math.cos(angle_rad)
+            right_y = py - arrow_width * math.sin(angle_rad)
+            draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
+        # Draw aircraft point
+        draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
+        continue
+        
         dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
         lat1 = math.radians(center_lat)
         lon1 = math.radians(center_lon)
@@ -56,6 +121,18 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
         py = cy - r_pixels * math.cos(angle_rad)
         # Draw line from centre to aircraft
         draw.line([cx, cy, px, py], fill="yellow")
+        # Draw arrowhead at aircraft position to indicate direction
+        arrow_len = 12  # pixels length of arrow tip
+        arrow_width = 5
+        # tip point further along bearing
+        tip_x = px + arrow_len * math.sin(angle_rad)
+        tip_y = py - arrow_len * math.cos(angle_rad)
+        # base corners perpendicular to bearing
+        left_x = px + arrow_width * math.cos(angle_rad)
+        left_y = py + arrow_width * math.sin(angle_rad)
+        right_x = px - arrow_width * math.cos(angle_rad)
+        right_y = py - arrow_width * math.sin(angle_rad)
+        draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
         # Draw aircraft point
         draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
     img.save(output_file)
@@ -180,14 +257,28 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
         else:
             print(f"[bold]Route:[/bold] {dep} ➡️ {arr}")
 
-        # Map link per aircraft
-        if show_map:
-            osm_url = f"https://www.openstreetmap.org/?mlat={s.latitude}&mlon={s.longitude}#map=12/{s.latitude}/{s.longitude}"
-            print(f"[bold]Map:[/bold] {osm_url}")
-
-        # Collect positions for static map image
+        # Determine destination label
+        dest_label = arr
+        if dest_label == "Unknown" and flightaware_route:
+            # Try to extract destination from flightaware_route string
+            # Common patterns: "... to XYZ", "... → XYZ", possibly with lowercase or spaces
+            import re
+            # Look for 'to' followed by any characters up to a line break or end
+            match = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
+            if not match:
+                # Arrow symbol variant
+                match = re.search(r"→\s*([^\n]+)", flightaware_route)
+            if match:
+                # Take the first word of the matched segment as airport code/name
+                candidate = match.group(1).strip()
+                # Remove any trailing descriptors (e.g., "airport", commas)
+                candidate = re.split(r"[,:]\s*", candidate)[0]
+                # Keep only alphanumeric characters and hyphens
+                candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
+                dest_label = candidate
+        # Append position with destination label (empty if still unknown)
         if generate_image:
-            positions.append((s.latitude, s.longitude))
+            positions.append((s.latitude, s.longitude, s.on_ground, dest_label if dest_label != "Unknown" else ""))
 
     # After processing all aircraft, generate static map if requested
     if generate_image and positions:
