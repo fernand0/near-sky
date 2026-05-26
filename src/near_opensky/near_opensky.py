@@ -277,6 +277,7 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                 candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
                 dest_label = candidate
         # Append position with destination label (empty if still unknown)
+        print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
         if generate_image:
             positions.append((s.latitude, s.longitude, s.on_ground, dest_label if dest_label != "Unknown" else ""))
 
