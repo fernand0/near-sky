@@ -105,7 +105,7 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
         # Draw aircraft point
         draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
         continue
-        
+
         dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
         lat1 = math.radians(center_lat)
         lon1 = math.radians(center_lon)
@@ -173,7 +173,7 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
     """
     center = (orig.ORIGIN_LAT, orig.ORIGIN_LON)  # Default coordinates from origin module
     positions = []  # Collect aircraft positions for static map generation
-    bounding_box = calculate_bbox(center[0], center[1], radius)
+    bounding_box = calculate_bbox(center[0], center[1], 100)
     api = OpenSkyApi()
     states = api.get_states(bbox=bounding_box)
 
@@ -189,97 +189,108 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
         reverse=True,
     )
 
+
+    last = sorted_states[-1]
+    last_distance = distance.distance((last.latitude, last.longitude), center).km
+    if  last_distance> radius:
+        print(f"Changing radius {radius}, distante {last_distance}")
+        numbers = (5, 10, 25, 50, 100)
+        result = min(x for x in numbers if x > last_distance)
+        print(f"Changing radius, distante {last_distance} -> {result}")
+        radius = result
+
     for s in sorted_states:
-        print(f"[bold]Callsign:[/bold] {s.callsign}")
-        print(f"[bold]Origin:[/bold] {s.origin_country}")
-        print(f"[bold]Altitude:[/bold] {s.geo_altitude}")
-        print(
-            f"[bold]Distance:[/bold] {distance.distance((s.latitude, s.longitude), center).km}\n"
-            f"[bold]Status:[/bold] {'✅ Grounded' if getattr(s, 'on_ground', getattr(s, '__getitem__', lambda idx: None)(8) if hasattr(s, '__getitem__') else False) else '✈️ In‑flight'}"
-        )
+        if distance.distance((s.latitude, s.longitude), center).km <=radius:
+            print(f"[bold]Callsign:[/bold] {s.callsign}")
+            print(f"[bold]Origin:[/bold] {s.origin_country}")
+            print(f"[bold]Altitude:[/bold] {s.geo_altitude}")
+            print(
+                f"[bold]Distance:[/bold] {distance.distance((s.latitude, s.longitude), center).km}\n"
+                f"[bold]Status:[/bold] {'✅ Grounded' if getattr(s, 'on_ground', getattr(s, '__getitem__', lambda idx: None)(8) if hasattr(s, '__getitem__') else False) else '✈️ In‑flight'}"
+            )
 
-        end_time = int(time.time())
-        start_time = end_time - 60 * 60 * 24
-        url = (
-            f"https://opensky-network.org/api/flights/aircraft?icao24={s.icao24}&"
-            f"begin={start_time}&end={end_time}"
-        )
-        req = requests.get(url, headers=tokens.headers())
-        opensky_route = None
-        flightaware_route = None
-        dep = "Unknown"
-        arr = "Unknown"
+            end_time = int(time.time())
+            start_time = end_time - 60 * 60 * 24
+            url = (
+                f"https://opensky-network.org/api/flights/aircraft?icao24={s.icao24}&"
+                f"begin={start_time}&end={end_time}"
+            )
+            req = requests.get(url, headers=tokens.headers())
+            opensky_route = None
+            flightaware_route = None
+            dep = "Unknown"
+            arr = "Unknown"
 
-        try:
-            flights_history = req.json()
-            if isinstance(flights_history, list) and flights_history:
-                current_callsign = s.callsign.strip() if s.callsign else ""
-                latest_flight = None
-                if current_callsign:
-                    for f in flights_history:
-                        if f.get("callsign", "").strip() == current_callsign:
-                            latest_flight = f
-                            break
-                if not latest_flight:
-                    latest_flight = flights_history[0]
-                dep = get_airport_name(latest_flight.get("estDepartureAirport"))
-                arr = get_airport_name(latest_flight.get("estArrivalAirport"))
-                if dep != "Unknown" and arr != "Unknown":
-                    opensky_route = f"{dep} ➡️ {arr}"
-        except Exception:
-            pass
-
-        if s.callsign:
-            url_fa = f"https://es.flightaware.com/live/flight/{s.callsign.strip()}"
             try:
-                req_fa = requests.get(
-                    url_fa,
-                    headers={
-                        "User-Agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/120.0.0.0 Safari/537.36"
-                        )
-                    },
-                )
-                if req_fa.status_code == 200:
-                    soup = BeautifulSoup(req_fa.text, "lxml")
-                    meta = soup.find("meta", property="og:description")
-                    if meta and meta.get("content"):
-                        flightaware_route = meta["content"].strip()
+                flights_history = req.json()
+                if isinstance(flights_history, list) and flights_history:
+                    current_callsign = s.callsign.strip() if s.callsign else ""
+                    latest_flight = None
+                    if current_callsign:
+                        for f in flights_history:
+                            if f.get("callsign", "").strip() == current_callsign:
+                                latest_flight = f
+                                break
+                    if not latest_flight:
+                        latest_flight = flights_history[0]
+                    dep = get_airport_name(latest_flight.get("estDepartureAirport"))
+                    arr = get_airport_name(latest_flight.get("estArrivalAirport"))
+                    if dep != "Unknown" and arr != "Unknown":
+                        opensky_route = f"{dep} ➡️ {arr}"
             except Exception:
                 pass
 
-        if opensky_route:
-            print(f"[bold]Route:[/bold] {opensky_route}")
-        elif flightaware_route:
-            print(f"[bold]Route:[/bold] {flightaware_route}")
-        else:
-            print(f"[bold]Route:[/bold] {dep} ➡️ {arr}")
+            if s.callsign:
+                url_fa = f"https://es.flightaware.com/live/flight/{s.callsign.strip()}"
+                try:
+                    req_fa = requests.get(
+                        url_fa,
+                        headers={
+                            "User-Agent": (
+                                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                "Chrome/120.0.0.0 Safari/537.36"
+                            )
+                        },
+                    )
+                    if req_fa.status_code == 200:
+                        soup = BeautifulSoup(req_fa.text, "lxml")
+                        meta = soup.find("meta", property="og:description")
+                        if meta and meta.get("content"):
+                            flightaware_route = meta["content"].strip()
+                except Exception:
+                    pass
 
-        # Determine destination label
-        dest_label = arr
-        if dest_label == "Unknown" and flightaware_route:
-            # Try to extract destination from flightaware_route string
-            # Common patterns: "... to XYZ", "... → XYZ", possibly with lowercase or spaces
-            import re
-            # Look for 'to' followed by any characters up to a line break or end
-            match = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
-            if not match:
-                # Arrow symbol variant
-                match = re.search(r"→\s*([^\n]+)", flightaware_route)
-            if match:
-                # Take the first word of the matched segment as airport code/name
-                candidate = match.group(1).strip()
-                # Remove any trailing descriptors (e.g., "airport", commas)
-                candidate = re.split(r"[,:]\s*", candidate)[0]
-                # Keep only alphanumeric characters and hyphens
-                candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
-                dest_label = candidate
-        # Append position with destination label (empty if still unknown)
-        print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
-        if generate_image:
-            positions.append((s.latitude, s.longitude, s.on_ground, dest_label if dest_label != "Unknown" else ""))
+            if opensky_route:
+                print(f"[bold]Route:[/bold] {opensky_route}")
+            elif flightaware_route:
+                print(f"[bold]Route:[/bold] {flightaware_route}")
+            else:
+                print(f"[bold]Route:[/bold] {dep} ➡️ {arr}")
+
+            # Determine destination label
+            dest_label = arr
+            if dest_label == "Unknown" and flightaware_route:
+                # Try to extract destination from flightaware_route string
+                # Common patterns: "... to XYZ", "... → XYZ", possibly with lowercase or spaces
+                import re
+                # Look for 'to' followed by any characters up to a line break or end
+                match = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
+                if not match:
+                    # Arrow symbol variant
+                    match = re.search(r"→\s*([^\n]+)", flightaware_route)
+                if match:
+                    # Take the first word of the matched segment as airport code/name
+                    candidate = match.group(1).strip()
+                    # Remove any trailing descriptors (e.g., "airport", commas)
+                    candidate = re.split(r"[,:]\s*", candidate)[0]
+                    # Keep only alphanumeric characters and hyphens
+                    candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
+                    dest_label = candidate
+            # Append position with destination label (empty if still unknown)
+            print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
+            if generate_image:
+                positions.append((s.latitude, s.longitude, s.on_ground, dest_label if dest_label != "Unknown" else ""))
 
     # After processing all aircraft, generate static map if requested
     if generate_image and positions:
