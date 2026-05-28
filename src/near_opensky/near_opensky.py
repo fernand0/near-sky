@@ -193,12 +193,13 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
     last = sorted_states[-1]
     last_distance = distance.distance((last.latitude, last.longitude), center).km
     if  last_distance> radius:
-        print(f"Changing radius {radius}, distante {last_distance}")
         numbers = (5, 10, 25, 50, 100)
         result = min(x for x in numbers if x > last_distance)
-        print(f"Changing radius, distante {last_distance} -> {result}")
+        print(f"Changing radius {radius}, nearest plane at {last_distance}"
+              f" new radius -> {result}")
         radius = result
 
+    print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
     for s in sorted_states:
         if distance.distance((s.latitude, s.longitude), center).km <=radius:
             print(f"[bold]Callsign:[/bold] {s.callsign}")
