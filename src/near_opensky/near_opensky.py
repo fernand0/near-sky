@@ -160,6 +160,13 @@ def calculate_bbox(lat, lon, radius_km):
     return (lat - lat_offset, lat + lat_offset, lon - lon_offset, lon + lon_offset)
 
 
+import unicodedata
+
+def remove_accents(input_str):
+    # Normalize to NFD (decomposed form)
+    nfkd_form = unicodedata.normalize('NFD', input_str)
+    # Encode to ASCII, ignoring non-ASCII characters (the accents)
+    return nfkd_form.encode('ASCII', 'ignore').decode('UTF-8')
 
 
 
@@ -277,18 +284,38 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                 # Common patterns: "... to XYZ", "... → XYZ", possibly with lowercase or spaces
                 import re
                 # Look for 'to' followed by any characters up to a line break or end
-                match = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
-                if not match:
-                    # Arrow symbol variant
-                    match = re.search(r"→\s*([^\n]+)", flightaware_route)
-                if match:
+                match_orig = re.search(r"from\s+([^\n]+)", flightaware_route, re.IGNORECASE)
+                # if not match_dest:
+                #     # Arrow symbol variant
+                #     match_dest = re.search(r"→\s*([^\n]+)", flightaware_route)
+                if match_orig:
                     # Take the first word of the matched segment as airport code/name
-                    candidate = match.group(1).strip()
+                    candidate = match_orig.group(1).strip()
                     # Remove any trailing descriptors (e.g., "airport", commas)
                     candidate = re.split(r"[,:]\s*", candidate)[0]
                     # Keep only alphanumeric characters and hyphens
-                    candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
-                    dest_label = candidate
+                    #candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
+                    orig_label = candidate
+                    match_dest = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
+                    if match_dest:
+                        # Take the first word of the matched segment as airport code/name
+                        candidate = match_dest.group(1).strip()
+                        # Remove any trailing descriptors (e.g., "airport", commas)
+                        candidate = re.split(r"[,:]\s*", candidate)[0]
+                        # Keep only alphanumeric characters and hyphens
+                        #candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
+                        dest_label = candidate
+                        dest_label = dest_label.replace("Int'l de", "")
+                        match_dest = re.search(r"to\s+([^\n]+)", orig_label, re.IGNORECASE)
+                        orig_label = orig_label.replace(dest_label, "")[:-3] 
+                        orig_label = orig_label.replace("Int'l de", "")
+                        orig_label = orig_label.replace("Int'l", "")
+
+                        from airports import airport_data
+
+                        print(f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}")
+                        print(f"[bold]Destination:[/bold] {dest_label} {airport_data.search_by_name(remove_accents(dest_label))}")
+
             # Append position with destination label (empty if still unknown)
             print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
             if generate_image:

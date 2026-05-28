@@ -16,6 +16,7 @@ dependencies = [
     "rich",
     "opensky-api @ git+https://github.com/openskynetwork/opensky-api.git#subdirectory=python",
     "geopy",
+    "airports.py",
     "beautifulsoup4",
     "lxml",
     "requests",
