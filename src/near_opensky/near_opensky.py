@@ -269,6 +269,7 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
             else:
                 print(f"[bold]Route:[/bold] {dep} ➡️ {arr}")
 
+
             # Determine destination label
             dest_label = arr
             if dest_label == "Unknown" and flightaware_route:
@@ -292,6 +293,11 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
             print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
             if generate_image:
                 positions.append((s.latitude, s.longitude, s.on_ground, dest_label if dest_label != "Unknown" else ""))
+    # Map link per aircraft
+    if show_map or generate_image:
+        osm_url = f"https://www.openstreetmap.org/?mlat={s.latitude}&mlon={s.longitude}#map=12/{s.latitude}/{s.longitude}"
+        print(f"[bold]Map:[/bold] {osm_url}")
+
 
     # After processing all aircraft, generate static map if requested
     if generate_image and positions:
