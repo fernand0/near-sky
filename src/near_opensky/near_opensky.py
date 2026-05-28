@@ -193,7 +193,7 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
     last = sorted_states[-1]
     last_distance = distance.distance((last.latitude, last.longitude), center).km
     if  last_distance> radius:
-        numbers = (5, 10, 25, 50, 100)
+        numbers = (5, 10, 15, 25, 50, 75, 100)
         result = min(x for x in numbers if x > last_distance)
         print(f"Changing radius {radius}, nearest plane at {last_distance}"
               f" new radius -> {result}")
