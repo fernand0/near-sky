@@ -137,50 +137,29 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
         angle_rad = math.radians(bearing)
         px = cx + r_pixels * math.sin(angle_rad)
         py = cy - r_pixels * math.cos(angle_rad)
-        # Center line removed – not needed for visual clarity
+
+        # # Draw line from centre to aircraft
+        # draw.line([cx, cy, px, py], fill="yellow")
         if grounded:
             # Draw small square for grounded aircraft
             sq_size = 6
             draw.rectangle([px - sq_size/2, py - sq_size/2, px + sq_size/2, py + sq_size/2], fill="blue")
         else:
             # Draw arrowhead at aircraft position to indicate direction
-            arrow_len = 12  # pixels length of arrow tip
+            arrow_len = 12
             arrow_width = 5
-            # tip point further along bearing
             tip_x = px + arrow_len * math.sin(angle_rad)
             tip_y = py - arrow_len * math.cos(angle_rad)
-            # base corners perpendicular to bearing
-            left_x = px + arrow_width * math.cos(angle_rad)
-            left_y = py + arrow_width * math.sin(angle_rad)
-            right_x = px - arrow_width * math.cos(angle_rad)
-            right_y = py - arrow_width * math.sin(angle_rad)
+            left_x = px - arrow_width * math.sin(angle_rad)
+            left_y = py - arrow_width * math.cos(angle_rad)
+            right_x = px + arrow_width * math.sin(angle_rad)
+            right_y = py + arrow_width * math.cos(angle_rad)
             draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
         # Draw aircraft point
         draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
-        # Write destination label if available
+        # Destination label (if available)
         if dest:
-            draw.text((px + 6, py - 6), dest, fill="yellow")
-        continue
-        if grounded:
-            # Draw small square for grounded aircraft
-            sq_size = 6
-            draw.rectangle([px - sq_size/2, py - sq_size/2, px + sq_size/2, py + sq_size/2], fill="blue")
-        else:
-            # Draw arrowhead at aircraft position to indicate direction
-            arrow_len = 12  # pixels length of arrow tip
-            arrow_width = 5
-            # tip point further along bearing
-            tip_x = px + arrow_len * math.sin(angle_rad)
-            tip_y = py - arrow_len * math.cos(angle_rad)
-            # base corners perpendicular to bearing
-            left_x = px + arrow_width * math.cos(angle_rad)
-            left_y = py + arrow_width * math.sin(angle_rad)
-            right_x = px - arrow_width * math.cos(angle_rad)
-            right_y = py - arrow_width * math.sin(angle_rad)
-            draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
-        # Draw aircraft point
-        draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
-        continue
+            draw.text((px + 6, py - 6), dest, fill="yellow", font=font)
 
         dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
         lat1 = math.radians(center_lat)
@@ -195,22 +174,11 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
         angle_rad = math.radians(bearing)
         px = cx + r_pixels * math.sin(angle_rad)
         py = cy - r_pixels * math.cos(angle_rad)
-        # Draw line from centre to aircraft
-        draw.line([cx, cy, px, py], fill="yellow")
+        # # Draw line from centre to aircraft
+        # draw.line([cx, cy, px, py], fill="yellow")
         # Draw arrowhead at aircraft position to indicate direction
         arrow_len = 12  # pixels length of arrow tip
-        arrow_width = 5
-        # tip point further along bearing
-        tip_x = px + arrow_len * math.sin(angle_rad)
-        tip_y = py - arrow_len * math.cos(angle_rad)
-        # base corners perpendicular to bearing
-        left_x = px + arrow_width * math.cos(angle_rad)
-        left_y = py + arrow_width * math.sin(angle_rad)
-        right_x = px - arrow_width * math.cos(angle_rad)
-        right_y = py - arrow_width * math.sin(angle_rad)
-        draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
-        # Draw aircraft point
-        draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
+
     img.save(output_file)
     print(f"[bold]Radar image saved to:[/bold] {output_file}")
 
@@ -346,29 +314,34 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                             flightaware_route = meta["content"].strip()
                         origin = soup.find("meta", attrs={"name": "origin"})
                         from airports import airport_data
-                        print(f"--Origin {origin}")
                         cnt = origin['content']
-                        print(f"--Origin {cnt}")
-                        print(f"--Origin {cnt} {airport_data.get_airport_by_icao[cnt]}")
+                        dep = f"{airport_data.get_airport_by_icao(cnt)[0]['airport']} [{cnt}]"
+                        print(f"--Origin {dep}")
                         destination = soup.find("meta", attrs={"name": "destination"})
-                        print(f"--Destination {destination}")
+                        if destination:
+                            cnt = destination['content']
+                            arr = f"{airport_data.get_airport_by_icao(cnt)[0]['airport']} [{cnt}]"
+                            print(f"--Destination {arr}")
                         airline = soup.find("meta", attrs={"name": "airline"})
-                        print(f"--Airline {airline}")
+                        print(f"--Airline {airline['content']}")
 
                 except Exception:
                     pass
 
             if opensky_route:
                 print(f"[bold]Route:[/bold] {opensky_route}")
+            elif dep and arr:
+                print(f"[bold]Route:[/bold] {dep} ➡️  {arr}")
             elif flightaware_route:
                 print(f"[bold]Route:[/bold] {flightaware_route}")
             else:
-                print(f"[bold]Route:[/bold] {dep} ➡️ {arr}")
+                print(f"[bold]Route:[/bold] {dep} ➡️  {arr}")
 
 
             # Determine destination label
             dest_label = arr
-            if dest_label == "Unknown" and flightaware_route:
+            orig_label = dep
+            if dest_label == "Unknown" and flightaware_route and 'to' in flightaware_route:
                 # Try to extract destination from flightaware_route string
                 # Common patterns: "... to XYZ", "... → XYZ", possibly with lowercase or spaces
                 import re

@@ -10,6 +10,9 @@ set -euo pipefail   # safer Bash execution
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="${PROJECT_ROOT}/.venv"
 
+# Ensure src is on PYTHONPATH
+export PYTHONPATH="${PROJECT_ROOT}/src:${PYTHONPATH:-}"
+
 # Create the virtual environment on first run
 if [ ! -d "${VENV_DIR}" ]; then
     echo "⏳ Creating virtual environment in ${VENV_DIR}..."
