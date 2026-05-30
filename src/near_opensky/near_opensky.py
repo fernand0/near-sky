@@ -3,16 +3,15 @@
 from . import origin as orig
 
 import sys
-import os
-from pathlib import Path
 import argparse
+from typing import List, Tuple, Optional
+from dataclasses import dataclass
 
 # Original OpenSky imports
 from rich import print
 from opensky_api import OpenSkyApi
 from geopy import distance
 from bs4 import BeautifulSoup
-import os
 import math
 import requests
 import time
@@ -21,8 +20,89 @@ from . import opensky_auth as tokens
 # Pillow for image generation
 from PIL import Image, ImageDraw, ImageFont
 
+def _draw_city(draw: ImageDraw.Draw, cx: int, cy: int, size: int, radius_km: float, center_lat: float, center_lon: float, name: str, clat: float, clon: float, font: ImageFont.ImageFont) -> None:
+    """Draw a city/town marker and label on the radar.
+
+    Parameters
+    ----------
+    draw: ImageDraw.Draw
+        Drawing context.
+    cx, cy: int
+        Center pixel coordinates of the radar.
+    size: int
+        Image size in pixels (square).
+    radius_km: float
+        Radar radius in kilometres.
+    center_lat, center_lon: float
+        Geographic centre of the radar.
+    name: str
+        City or town name.
+    clat, clon: float
+        Latitude and longitude of the city.
+    font: ImageFont.ImageFont
+        Font for text labels.
+    """
+    # Compute bearing from centre to city
+    lat1 = math.radians(center_lat)
+    lon1 = math.radians(center_lon)
+    lat2 = math.radians(clat)
+    lon2 = math.radians(clon)
+    y = math.sin(lon2 - lon1) * math.cos(lat2)
+    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
+    bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
+    # Convert distance to pixel radius
+    dist_km = distance.distance((center_lat, center_lon), (clat, clon)).km
+    r_pixels = (dist_km / radius_km) * (size / 2)
+    angle_rad = math.radians(bearing)
+    px = cx + r_pixels * math.sin(angle_rad)
+    py = cy - r_pixels * math.cos(angle_rad)
+    # Draw small green indicator and label
+    draw.ellipse([px - 2, py - 2, px + 2, py + 2], fill=(0, 100, 0))
+    draw.text((px + 5, py - 5), name, fill=(0, 100, 0), font=font)
+
+def _draw_aircraft(draw: ImageDraw.Draw, cx: int, cy: int, size: int, radius_km: float, center_lat: float, center_lon: float, lat: float, lon: float, grounded: bool, dest: Optional[str], font: ImageFont.ImageFont) -> None:
+    """Draw an aircraft marker, optional grounded square, arrow, and destination label.
+    """
+    # Compute bearing and distance
+    lat1 = math.radians(center_lat)
+    lon1 = math.radians(center_lon)
+    lat2 = math.radians(lat)
+    lon2 = math.radians(lon)
+    y = math.sin(lon2 - lon1) * math.cos(lat2)
+    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
+    bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
+    dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
+    r_pixels = (dist_km / radius_km) * (size / 2)
+    angle_rad = math.radians(bearing)
+    px = cx + r_pixels * math.sin(angle_rad)
+    py = cy - r_pixels * math.cos(angle_rad)
+    if grounded:
+        sq_size = 6
+        draw.rectangle([px - sq_size/2, py - sq_size/2, px + sq_size/2, py + sq_size/2], fill="blue")
+    else:
+        arrow_len = 12
+        arrow_width = 5
+        tip_x = px + arrow_len * math.sin(angle_rad)
+        tip_y = py - arrow_len * math.cos(angle_rad)
+        left_x = px - arrow_width * math.sin(angle_rad)
+        left_y = py - arrow_width * math.cos(angle_rad)
+        right_x = px + arrow_width * math.sin(angle_rad)
+        right_y = py + arrow_width * math.cos(angle_rad)
+        draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
+    # Aircraft point
+    draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
+    if dest:
+        draw.text((px + 6, py - 6), dest, fill="yellow", font=font)
+
 # Optional airports data for helper
 
+@dataclass
+class AircraftPos:
+    """Simple container for aircraft position data used in radar image generation."""
+    lat: float
+    lon: float
+    grounded: bool
+    dest: Optional[str] = None
 def get_nearby_cities(lat, lon, radius_km):
     """Retrieve cities and towns within a specified radius using the Overpass API."""
     url = "https://overpass-api.de/api/interpreter"
@@ -86,101 +166,19 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
             r = (dist / radius_km) * (size / 2)
             draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline="green")
 
-    # Draw cities/towns around center
     cities = get_nearby_cities(center_lat, center_lon, radius_km)
-    max_cities_to_draw = 12
-    drawn_count = 0
-    
-    # Sort cities to prioritize 'city' type over 'town' type, then by distance
     sorted_cities = sorted(cities, key=lambda x: (0 if x[4] == "city" else 1, x[3]))
     
-    for name, clat, clon, dist_km, place_type in sorted_cities:
-        if drawn_count >= max_cities_to_draw:
-            break
-            
-        lat1 = math.radians(center_lat)
-        lon1 = math.radians(center_lon)
-        lat2 = math.radians(clat)
-        lon2 = math.radians(clon)
-        y = math.sin(lon2 - lon1) * math.cos(lat2)
-        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
-        bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
+    for name, clat, clon, dist_km, place_type in sorted_cities[:12]:
+         _draw_city(draw, cx, cy, size, radius_km, center_lat, center_lon, name, clat, clon, font)
         
-        # Convert to pixel radius
-        r_pixels = (dist_km / radius_km) * (size / 2)
-        angle_rad = math.radians(bearing)
-        px = cx + r_pixels * math.sin(angle_rad)
-        py = cy - r_pixels * math.cos(angle_rad)
-        
-        # Color: dim green for towns/cities to distinguish from aircraft
-        color = (0, 100, 0)  # Dark green
-        
-        # Draw small indicator
-        draw.ellipse([px - 2, py - 2, px + 2, py + 2], fill=color)
-        
-        # Draw text label
-        draw.text((px + 5, py - 5), name, fill=color, font=font)
-        drawn_count += 1
-
     for lat, lon, grounded, dest in positions:
-        # distance and bearing from centre
-        dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
-        lat1 = math.radians(center_lat)
-        lon1 = math.radians(center_lon)
-        lat2 = math.radians(lat)
-        lon2 = math.radians(lon)
-        y = math.sin(lon2 - lon1) * math.cos(lat2)
-        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
-        bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
-        # Convert to pixel radius
-        r_pixels = (dist_km / radius_km) * (size / 2)
-        angle_rad = math.radians(bearing)
-        px = cx + r_pixels * math.sin(angle_rad)
-        py = cy - r_pixels * math.cos(angle_rad)
-
-        # # Draw line from centre to aircraft
-        # draw.line([cx, cy, px, py], fill="yellow")
-        if grounded:
-            # Draw small square for grounded aircraft
-            sq_size = 6
-            draw.rectangle([px - sq_size/2, py - sq_size/2, px + sq_size/2, py + sq_size/2], fill="blue")
-        else:
-            # Draw arrowhead at aircraft position to indicate direction
-            arrow_len = 12
-            arrow_width = 5
-            tip_x = px + arrow_len * math.sin(angle_rad)
-            tip_y = py - arrow_len * math.cos(angle_rad)
-            left_x = px - arrow_width * math.sin(angle_rad)
-            left_y = py - arrow_width * math.cos(angle_rad)
-            right_x = px + arrow_width * math.sin(angle_rad)
-            right_y = py + arrow_width * math.cos(angle_rad)
-            draw.polygon([(tip_x, tip_y), (left_x, left_y), (right_x, right_y)], fill="yellow")
-        # Draw aircraft point
-        draw.ellipse([px - 4, py - 4, px + 4, py + 4], fill="red")
-        # Destination label (if available)
-        if dest:
-            draw.text((px + 6, py - 6), dest, fill="yellow", font=font)
-
-        dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
-        lat1 = math.radians(center_lat)
-        lon1 = math.radians(center_lon)
-        lat2 = math.radians(lat)
-        lon2 = math.radians(lon)
-        y = math.sin(lon2 - lon1) * math.cos(lat2)
-        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
-        bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
-        # Convert to pixel radius
-        r_pixels = (dist_km / radius_km) * (size / 2)
-        angle_rad = math.radians(bearing)
-        px = cx + r_pixels * math.sin(angle_rad)
-        py = cy - r_pixels * math.cos(angle_rad)
-        # # Draw line from centre to aircraft
-        # draw.line([cx, cy, px, py], fill="yellow")
-        # Draw arrowhead at aircraft position to indicate direction
-        arrow_len = 12  # pixels length of arrow tip
+         _draw_aircraft(draw, cx, cy, size, radius_km, center_lat, center_lon, lat, lon, grounded, dest, font)
 
     img.save(output_file)
-    print(f"[bold]Radar image saved to:[/bold] {output_file}")
+    print(f"[bold green]✅ Radar image saved to:[/bold green] {output_file}")
+    return None
+
 
 try:
     import airportsdata
@@ -316,14 +314,14 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                         from airports import airport_data
                         cnt = origin['content']
                         dep = f"{airport_data.get_airport_by_icao(cnt)[0]['airport']} [{cnt}]"
-                        print(f"--Origin {dep}")
+                        print(f"[bold]Origin:[/bold] {dep}")
                         destination = soup.find("meta", attrs={"name": "destination"})
                         if destination:
                             cnt = destination['content']
                             arr = f"{airport_data.get_airport_by_icao(cnt)[0]['airport']} [{cnt}]"
-                            print(f"--Destination {arr}")
+                            print(f"[bold]Destination:[/bold] {arr}")
                         airline = soup.find("meta", attrs={"name": "airline"})
-                        print(f"--Airline {airline['content']}")
+                        print(f"[bold]Airline:[/bold] {airline['content']}")
 
                 except Exception:
                     pass
