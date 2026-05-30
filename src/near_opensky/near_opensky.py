@@ -23,6 +23,45 @@ from PIL import Image, ImageDraw, ImageFont
 
 # Optional airports data for helper
 
+def get_nearby_cities(lat, lon, radius_km):
+    """Retrieve cities and towns within a specified radius using the Overpass API."""
+    url = "https://overpass-api.de/api/interpreter"
+    
+    # Query for cities and towns within the radius
+    query = f"""
+    [out:json];
+    (
+      node["place"="city"](around:{radius_km * 1000},{lat},{lon});
+      node["place"="town"](around:{radius_km * 1000},{lat},{lon});
+    );
+    out body;
+    """
+    
+    headers = {"User-Agent": "near-opensky-cli/1.0"}
+    try:
+        response = requests.post(url, data={"data": query}, headers=headers, timeout=5)
+        if response.status_code == 200:
+            elements = response.json().get("elements", [])
+            cities = []
+            for e in elements:
+                name = e.get("tags", {}).get("name")
+                clat = e.get("lat")
+                clon = e.get("lon")
+                place_type = e.get("tags", {}).get("place")
+                if name and clat is not None and clon is not None:
+                    # Calculate distance to sort/filter
+                    dist = distance.distance((lat, lon), (clat, clon)).km
+                    if dist <= radius_km:
+                        cities.append((name, clat, clon, dist, place_type))
+            
+            # Sort by distance so we can prioritize closer ones
+            cities.sort(key=lambda x: x[3])
+            return cities
+    except Exception:
+        pass
+    return []
+
+
 def generate_radar_image(positions, center_lat, center_lon, radius_km, output_file):
     """Generate a radar‑style PNG showing aircraft positions.
 
@@ -46,6 +85,43 @@ def generate_radar_image(positions, center_lat, center_lon, radius_km, output_fi
         if dist < radius_km:
             r = (dist / radius_km) * (size / 2)
             draw.ellipse([cx - r, cy - r, cx + r, cy + r], outline="green")
+
+    # Draw cities/towns around center
+    cities = get_nearby_cities(center_lat, center_lon, radius_km)
+    max_cities_to_draw = 12
+    drawn_count = 0
+    
+    # Sort cities to prioritize 'city' type over 'town' type, then by distance
+    sorted_cities = sorted(cities, key=lambda x: (0 if x[4] == "city" else 1, x[3]))
+    
+    for name, clat, clon, dist_km, place_type in sorted_cities:
+        if drawn_count >= max_cities_to_draw:
+            break
+            
+        lat1 = math.radians(center_lat)
+        lon1 = math.radians(center_lon)
+        lat2 = math.radians(clat)
+        lon2 = math.radians(clon)
+        y = math.sin(lon2 - lon1) * math.cos(lat2)
+        x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(lon2 - lon1)
+        bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
+        
+        # Convert to pixel radius
+        r_pixels = (dist_km / radius_km) * (size / 2)
+        angle_rad = math.radians(bearing)
+        px = cx + r_pixels * math.sin(angle_rad)
+        py = cy - r_pixels * math.cos(angle_rad)
+        
+        # Color: dim green for towns/cities to distinguish from aircraft
+        color = (0, 100, 0)  # Dark green
+        
+        # Draw small indicator
+        draw.ellipse([px - 2, py - 2, px + 2, py + 2], fill=color)
+        
+        # Draw text label
+        draw.text((px + 5, py - 5), name, fill=color, font=font)
+        drawn_count += 1
+
     for lat, lon, grounded, dest in positions:
         # distance and bearing from centre
         dist_km = distance.distance((center_lat, center_lon), (lat, lon)).km
@@ -330,15 +406,15 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                     else:
                         print(f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}")
 
+            # Map link per aircraft
+            if show_map or generate_image:
+                osm_url = f"https://www.openstreetmap.org/?mlat={s.latitude}&mlon={s.longitude}#map=12/{s.latitude}/{s.longitude}"
+                print(f"[bold]Map:[/bold] {osm_url}")
+
             # Append position with destination label (empty if still unknown)
             print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
             if generate_image:
                 positions.append((s.latitude, s.longitude, s.on_ground, dest_label if dest_label != "Unknown" else ""))
-    # Map link per aircraft
-    if show_map or generate_image:
-        osm_url = f"https://www.openstreetmap.org/?mlat={s.latitude}&mlon={s.longitude}#map=12/{s.latitude}/{s.longitude}"
-        print(f"[bold]Map:[/bold] {osm_url}")
-
 
     # After processing all aircraft, generate static map if requested
     if generate_image and positions:
