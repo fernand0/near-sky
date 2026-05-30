@@ -1,38 +1,61 @@
-# near-opensky
+# near‑opensky
 
-A CLI tool that fetches live flight data from the OpenSky Network (using the opensky‑api library).
+A sleek CLI tool that fetches live flight data from the OpenSky Network and visualises it on a radar‑style map.
 
-## What it does
+## ✈️ Features
+- **Live aircraft positions** within a configurable radius.
+- **Static radar image** generation (`--map-image`) with optional destination labels (`--show-destinations`).
+- **Dynamic origin**: edit `src/near_opensky/origin.py` or provide a custom point via CLI.
+- **Rich terminal output** using `rich` for colourised information.
+- **Extensible** – add new helpers or data sources without touching the core driver.
 
-The tool queries the OpenSky API for aircraft within a **radius (km) around a default geographic point**. By default the point is set to the coordinates of the Basilica del Pilar in Zaragoza, Spain. These coordinates are defined in `src/near_opensky/origin.py` so you can easily adjust the reference location without touching the main script.
-
-## Usage
-
+## 📦 Installation
 ```bash
-# OpenSky mode (default radius 25 km around the default origin)
-near-opensky
+# Using pip (recommended)
+python -m pip install .
+# Or with uv (fast installer)
+uv pip install .
+```
+> The package ships a wrapper script `run_near_opensky.sh` that creates a temporary virtual environment on‑the‑fly.
+
+## 🚀 Quick start
+```bash
+# Default radius (25 km) around the bundled origin (Basilica del Pilar, Zaragoza)
+near‑opensky
 
 # Custom radius
-near-opensky --radius 120
+near‑opensky --radius 120
+
+# Generate a radar PNG
+near‑opensky --map-image --output my_radar.png
+
+# Show destination labels on the radar image
+near‑opensky --map-image --show-destinations
 ```
 
-### Configuring the default origin
+## 🎯 Configuring the origin
+- **Edit the constants** in `src/near_opensky/origin.py`:
+  ```python
+  ORIGIN_LAT = 41.6562
+  ORIGIN_LON = -0.8805
+  ```
+- **Or set a custom origin at runtime** (future feature placeholder).
 
-Edit `src/near_opensky/origin.py` and change the `ORIGIN_LAT` and `ORIGIN_LON` constants to the latitude and longitude you want the CLI to use as the centre of the search area.
+## 🛠️ Advanced flags
+| Flag | Description |
+|------|-------------|
+| `--radius <km>` | Search radius in kilometres (default **25**). |
+| `--map` | Print an OpenStreetMap link for each aircraft. |
+| `--map-image` | Generate a static PNG radar image. |
+| `--show-destinations` | Include destination labels on the radar image. |
+| `--output <file>` | Filename for the generated PNG (default **opensky_map.png**). |
 
-## Custom origin via CLI
+## 🤝 Contributing
+1. Fork the repository.
+2. Create a feature branch.
+3. Keep the code style consistent (`black`, `ruff`).
+4. Write tests for new functionality.
+5. Submit a pull request.
 
-You can set a custom origin without editing the source code by using the new command‑line interface provided in `src/near_opensky/origin.py`.
-
-```bash
-python src/near_opensky/origin.py "City, Country"
-```
-
-Running this command updates the internal origin coordinates and prints the new values, e.g., `Origin set to (48.8566, 2.3522)` for Paris. The CLI will then use this location for subsequent `near-opensky` queries.
-
-
-## Token handling
-
-If you set the environment variable `OPENSKY_TOKEN` the CLI will include it in API requests that require authentication. Without the token the tool still works for public data calls.
-
-The project is installable via `uv` and provides an automatic wrapper script `run_near_opensky.sh` that creates a virtual environment on the fly.
+## 📜 License
+This project is licensed under the **MIT License** – see the `LICENSE` file for details.
