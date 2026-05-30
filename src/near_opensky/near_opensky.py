@@ -263,9 +263,22 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                     )
                     if req_fa.status_code == 200:
                         soup = BeautifulSoup(req_fa.text, "lxml")
+                        meta = soup.find_all("meta")
+                        #print(meta)
                         meta = soup.find("meta", property="og:description")
                         if meta and meta.get("content"):
                             flightaware_route = meta["content"].strip()
+                        origin = soup.find("meta", attrs={"name": "origin"})
+                        from airports import airport_data
+                        print(f"--Origin {origin}")
+                        cnt = origin['content']
+                        print(f"--Origin {cnt}")
+                        print(f"--Origin {cnt} {airport_data.get_airport_by_icao[cnt]}")
+                        destination = soup.find("meta", attrs={"name": "destination"})
+                        print(f"--Destination {destination}")
+                        airline = soup.find("meta", attrs={"name": "airline"})
+                        print(f"--Airline {airline}")
+
                 except Exception:
                     pass
 
@@ -296,6 +309,8 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                     # Keep only alphanumeric characters and hyphens
                     #candidate = re.sub(r"[^A-Za-z0-9-]", "", candidate)
                     orig_label = candidate
+                    orig_label = orig_label.replace("Int'l de", "")
+                    orig_label = orig_label.replace("Int'l", "")
                     match_dest = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
                     if match_dest:
                         # Take the first word of the matched segment as airport code/name
@@ -308,13 +323,12 @@ def run_opensky(radius: float, show_map: bool = False, generate_image: bool = Fa
                         dest_label = dest_label.replace("Int'l de", "")
                         match_dest = re.search(r"to\s+([^\n]+)", orig_label, re.IGNORECASE)
                         orig_label = orig_label.replace(dest_label, "")[:-3] 
-                        orig_label = orig_label.replace("Int'l de", "")
-                        orig_label = orig_label.replace("Int'l", "")
 
-                        from airports import airport_data
 
                         print(f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}")
                         print(f"[bold]Destination:[/bold] {dest_label} {airport_data.search_by_name(remove_accents(dest_label))}")
+                    else:
+                        print(f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}")
 
             # Append position with destination label (empty if still unknown)
             print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
