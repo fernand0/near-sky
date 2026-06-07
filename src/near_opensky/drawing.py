@@ -113,7 +113,7 @@ def generate_radar_image(
     for pos in positions:
         bearing = pos.mag_heading
         if bearing is None:
-            bearing = bearing_ellipsoidal(center_lat, center_lon, pos.lat, pos.lon)
+            bearing = bearing_ellipsoidal(center_lat, center_lon, pos.latitude, pos.longitude)
         _draw_aircraft(
             draw,
             cx,

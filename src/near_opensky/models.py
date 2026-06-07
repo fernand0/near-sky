@@ -14,3 +14,4 @@ class AircraftPosition:
     ident: str = ""
     mag_heading: Optional[float] = None
     icao24: str = ""
+    origin_country: Optional[str] = None

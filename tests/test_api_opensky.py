@@ -30,12 +30,11 @@ def test_fetch_opensky_positions_no_states(monkeypatch):
             return None
 
     monkeypatch.setattr(api, "OpenSkyApi", lambda: DummyApi())
-    positions, states = api.fetch_opensky_positions((0, 0, 0, 0), 0.0, 0.0)
+    positions = api.fetch_opensky_positions((0, 0, 0, 0), 0.0, 0.0)
     assert positions == []
-    assert states is None
 
 
-def test_fetch_opensky_positions_returns_positions_and_states(monkeypatch):
+def test_fetch_opensky_positions_returns_positions(monkeypatch):
     fake_state = FakeState(0.0, 0.0, callsign="CALL1", icao24="id1", geo_altitude=10000)
     fake_states = FakeStates([fake_state])
 
@@ -44,9 +43,9 @@ def test_fetch_opensky_positions_returns_positions_and_states(monkeypatch):
             return fake_states
 
     monkeypatch.setattr(api, "OpenSkyApi", lambda: DummyApi())
-    positions, states = api.fetch_opensky_positions((0, 0, 0, 0), 0.0, 0.0)
+    positions = api.fetch_opensky_positions((0, 0, 0, 0), 0.0, 0.0)
     assert len(positions) == 1
     p = positions[0]
     assert p.latitude == fake_state.latitude
     assert p.longitude == fake_state.longitude
-    assert states is fake_states
+    assert p.origin_country is None
