@@ -3,6 +3,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+import near_opensky.near_opensky as near_opensky
+
 
 def run_cli(args):
     """Run the near-opensky CLI with the given args list and return (stdout, stderr, returncode)."""
@@ -28,3 +32,49 @@ def test_unknown_argument_fails():
     stdout, stderr, rc = run_cli(["--unknown-flag"])
     assert rc != 0
     assert "unrecognized arguments" in stderr.lower()
+
+
+def test_airplanes_live_uses_nearest_interval(monkeypatch, capsys):
+    fake_positions = [
+        type(
+            "P",
+            (),
+            {
+                "lat": 0.0,
+                "lon": 0.0,
+                "grounded": False,
+                "alt_km": 10.0,
+                "dest": "",
+                "ident": "ABC123",
+                "mag_heading": None,
+                "icao24": "abc",
+            },
+        ),
+        type(
+            "P",
+            (),
+            {
+                "lat": 0.5,
+                "lon": 0.0,
+                "grounded": False,
+                "alt_km": 10.0,
+                "dest": "",
+                "ident": "DEF456",
+                "mag_heading": None,
+                "icao24": "def",
+            },
+        ),
+    ]
+
+    def fake_fetch(center_lat, center_lon, radius_km):
+        return fake_positions
+
+    monkeypatch.setattr(near_opensky, "fetch_airplanes_live_positions", fake_fetch)
+    monkeypatch.setattr(near_opensky.origin, "ORIGIN_LAT", 0.0)
+    monkeypatch.setattr(near_opensky.origin, "ORIGIN_LON", 0.0)
+
+    near_opensky.run_opensky(100, airplanes_live=True)
+    captured = capsys.readouterr()
+
+    assert "Showing planes within the nearest interval" in captured.out
+    assert "Fetched 1 aircraft from airplanes.live" in captured.out

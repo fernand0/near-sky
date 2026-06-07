@@ -18,6 +18,21 @@ from .models import AircraftPosition
 from .opensky_auth import headers as opensky_headers
 from .utils import calculate_bbox, get_airport_name, remove_accents
 
+INTERVALS = (5, 10, 15, 25, 50, 75, 100, 150, 200)
+
+
+def choose_nearest_interval(radius: float, distances: list[float]) -> float | None:
+    """Choose the nearest defined interval that contains at least one plane."""
+    if radius <= 0:
+        return None
+    intervals = [n for n in INTERVALS if n <= radius]
+    if not intervals:
+        intervals = [radius]
+    for interval in intervals:
+        if any(d <= interval for d in distances):
+            return interval
+    return None
+
 
 def run_opensky(
     radius: float,
@@ -29,13 +44,22 @@ def run_opensky(
     """Run the main OpenSky/airplanes.live query and print flight summaries."""
     center = (origin.ORIGIN_LAT, origin.ORIGIN_LON)
     positions: List[AircraftPosition] = []
-    bounding_box = calculate_bbox(center[0], center[1], 100)
+    bounding_box = calculate_bbox(center[0], center[1], max(radius, 100))
     states = None
 
     if airplanes_live:
         positions = fetch_airplanes_live_positions(center[0], center[1], radius)
         if not positions:
             print("[bold red]No aircraft data returned from airplanes.live.[/bold red]")
+            return 0
+        distances = [distance.distance((pos.lat, pos.lon), center).km for pos in positions]
+        selected_radius = choose_nearest_interval(radius, distances)
+        if selected_radius is not None:
+            if selected_radius != radius:
+                print(f"Showing planes within the nearest interval: {selected_radius} km")
+            positions = [pos for pos, dist in zip(positions, distances) if dist <= selected_radius]
+        else:
+            print(f"[bold yellow]No flights found within the requested {radius} km intervals.[/bold yellow]")
             return 0
         print(f"[bold cyan]Fetched {len(positions)} aircraft from airplanes.live[/bold cyan]")
     else:
@@ -47,15 +71,14 @@ def run_opensky(
 
         in_flight_states = [s for s in states.states if not getattr(s, "on_ground", False)]
         if in_flight_states:
-            farthest_state = max(
-                in_flight_states,
-                key=lambda s: distance.distance((s.latitude, s.longitude), center).km,
-            )
-            last_distance = distance.distance((farthest_state.latitude, farthest_state.longitude), center).km
-            if last_distance > radius:
-                numbers = (5, 10, 15, 25, 50, 75, 100, 150, 200)
-                radius = min(x for x in numbers if x > last_distance)
-                print(f"Changing radius {radius} → new radius {radius}")
+            distances = [distance.distance((s.latitude, s.longitude), center).km for s in in_flight_states]
+            selected_radius = choose_nearest_interval(radius, distances)
+            if selected_radius is not None:
+                if selected_radius != radius:
+                    print(f"Showing planes within the nearest interval: {selected_radius} km")
+                radius = selected_radius
+            else:
+                print(f"[bold yellow]No flights found within the requested {radius} km intervals.[/bold yellow]")
 
         positions = build_positions_from_opensky(states.states, center, radius)
 
