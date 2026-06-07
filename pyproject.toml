@@ -20,7 +20,9 @@ dependencies = [
     "beautifulsoup4",
     "lxml",
     "requests",
-    "Pillow"
+    "httpx",
+    "Pillow",
+    "geographiclib"
 ]
 
 [project.scripts]
