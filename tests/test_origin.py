@@ -7,7 +7,7 @@ import math
 import pytest
 
 from near_opensky import origin
-from near_opensky.near_opensky import calculate_bbox
+from near_opensky.utils import calculate_bbox
 
 def test_default_origin():
     assert origin.ORIGIN_LAT == 41.6562
