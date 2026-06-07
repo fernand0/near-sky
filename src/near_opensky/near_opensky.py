@@ -18,7 +18,7 @@ from .models import AircraftPosition
 from .opensky_auth import headers as opensky_headers
 from .utils import calculate_bbox, get_airport_name, remove_accents
 
-INTERVALS = (5, 10, 15, 25, 50, 75, 100, 150, 200)
+INTERVALS = (5, 10, 15, 25, 50, 75, 100)
 
 
 def choose_nearest_interval(radius: float, distances: list[float]) -> float | None:
@@ -49,10 +49,11 @@ def run_opensky(
 
     if airplanes_live:
         positions = fetch_airplanes_live_positions(center[0], center[1], radius)
+        print(f"Pos: {positions}")
         if not positions:
             print("[bold red]No aircraft data returned from airplanes.live.[/bold red]")
             return 0
-        distances = [distance.distance((pos.lat, pos.lon), center).km for pos in positions]
+        distances = [distance.distance((pos.latitude, pos.longitude), center).km for pos in positions]
         selected_radius = choose_nearest_interval(radius, distances)
         if selected_radius is not None:
             if selected_radius != radius:
@@ -86,7 +87,7 @@ def run_opensky(
     if positions:
         sorted_positions = sorted(
             positions,
-            key=lambda p: distance.distance((p.lat, p.lon), center).km,
+            key=lambda p: distance.distance((p.latitude, p.longitude), center).km,
         )
         print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
         for pos in sorted_positions:
@@ -98,8 +99,8 @@ def run_opensky(
                         for s in states.states
                         if getattr(s, "icao24", None) == pos.icao24
                         or (
-                            getattr(s, "latitude", None) == pos.lat
-                            and getattr(s, "longitude", None) == pos.lon
+                            getattr(s, "latitude", None) == pos.latitude
+                            and getattr(s, "longitude", None) == pos.longitude
                         )
                     ),
                     None,
@@ -111,7 +112,7 @@ def run_opensky(
             if state_obj and not airplanes_live:
                 print(f"[bold]Origin:[/bold] {state_obj.origin_country}")
             print(
-                f"[bold]Distance:[/bold] {distance.distance((pos.lat, pos.lon), center).km:.1f} km\n"
+                f"[bold]Distance:[/bold] {distance.distance((pos.latitude, pos.longitude), center).km:.1f} km\n"
                 f"[bold]Status:[/bold] {'✅ Grounded' if pos.grounded else '✈️ In‑flight'}"
             )
 
@@ -221,7 +222,7 @@ def run_opensky(
                         )
 
             if show_map or generate_image:
-                osm_url = f"https://www.openstreetmap.org/?mlat={pos.lat}&mlon={pos.lon}#map=12/{pos.lat}/{pos.lon}"
+                osm_url = f"https://www.openstreetmap.org/?mlat={pos.latitude}&mlon={pos.longitude}#map=12/{pos.latitude}/{pos.longitude}"
                 print(f"[bold]Map:[/bold] {osm_url}")
 
             print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")

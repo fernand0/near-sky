@@ -80,8 +80,8 @@ def _build_positions_from_airplanes_live(ac_items: List[dict]) -> List[AircraftP
             alt_km = None
         positions.append(
             AircraftPosition(
-                lat=float(item["lat"]),
-                lon=float(item["lon"]),
+                latitude=float(item["lat"]),
+                longitude=float(item["lon"]),
                 grounded=(item.get("alt_baro") == "ground"),
                 alt_km=alt_km,
                 dest="",

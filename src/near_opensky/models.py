@@ -6,8 +6,8 @@ from typing import Optional
 
 @dataclass
 class AircraftPosition:
-    lat: float
-    lon: float
+    latitude: float
+    longitude: float
     grounded: bool
     alt_km: Optional[float] = None
     dest: str = ""
