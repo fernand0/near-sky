@@ -14,7 +14,7 @@ from .api import (
     fetch_opensky_positions,
     get_flightaware_route,
     get_opensky_route,
-    resolve_flightaware_labels,
+    #resolve_flightaware_labels,
 )
 from .drawing import generate_radar_image
 from .models import AircraftPosition
@@ -73,8 +73,8 @@ def _apply_interval_filter(positions: List[AircraftPosition], center: tuple[floa
 
 
 def _print_route_info(dep: str, arr: str, opensky_route: str | None, flightaware_route: str | None, airline_text: str | None, airplanes_live: bool) -> None:
-    if airplanes_live:
-        return
+    #if airplanes_live:
+    #    return
     if opensky_route:
         print(f"[bold]Route:[/bold] {opensky_route}")
     elif dep != "Unknown" and arr != "Unknown":
@@ -125,12 +125,19 @@ def display_nearby_aircraft(
         print(f"[bold dim cyan]{'─' * 55}[/bold dim cyan]")
         for pos in sorted_positions:
             pos_lat, pos_lon = _get_coords(pos)
+            print(f"[bold]Description:[/bold] {pos.desc}")
             print(f"[bold]Callsign:[/bold] {pos.ident}")
+            # url = f"https://api.airplanes.live/v2/callsign/{pos.ident}"
+            # import requests
+            # import urllib.request
+            # req = urllib.request.Request(url)
+            # resProc = requests.get(url).json()
+            # print(f"Info: {resProc}")
             if pos.alt_km is not None:
                 print(f"[bold]Altitude:[/bold] {pos.alt_km:.1f} km")
             origin_country = getattr(pos, "origin_country", None)
             if origin_country is not None:
-                print(f"[bold]Origin:[/bold] {origin_country}")
+                print(f"[bold]Origin country:[/bold] {origin_country}")
             dist_val = distance.distance((pos_lat, pos_lon), center).km if pos_lat is not None else float("nan")
             print(
                 f"[bold]Distance:[/bold] {dist_val:.1f} km\n"
@@ -142,14 +149,14 @@ def display_nearby_aircraft(
             dep = "Unknown"
             arr = "Unknown"
 
-            dep, arr, opensky_route = get_opensky_route(pos)
+            # dep, arr, opensky_route = get_opensky_route(pos)
             dep, arr, flightaware_route, airline_text = get_flightaware_route(pos, dep, arr)
             _print_route_info(dep, arr, opensky_route, flightaware_route, airline_text, airplanes_live)
 
             dest_label = arr
             orig_label = dep
-            if not airplanes_live:
-                orig_label, dest_label = resolve_flightaware_labels(flightaware_route, orig_label, dest_label)
+            # if not airplanes_live:
+            #     orig_label, dest_label = resolve_flightaware_labels(flightaware_route, orig_label, dest_label)
 
             if show_map or generate_image:
                 if pos_lat is not None and pos_lon is not None:

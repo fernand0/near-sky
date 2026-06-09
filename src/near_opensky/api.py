@@ -20,7 +20,7 @@ __all__ = [
     "fetch_opensky_positions",
     "get_opensky_route",
     "get_flightaware_route",
-    "resolve_flightaware_labels",
+    #"resolve_flightaware_labels",
 ]
 
 _AIRPLANES_LIVE_TS_PATH = os.path.join(os.path.dirname(__file__), ".airplanes_live_ts")
@@ -48,15 +48,15 @@ async def fetch_position(url: str) -> tuple[float, float]:
         return float(data["lat"]), float(data["lon"])
 
 
-async def fetch_airplanes_live_position(icao24: str) -> tuple[float, float]:
-    url = f"https://api.airplanes.live/api/v1/flight?icao24={icao24}"
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(url, timeout=10.0)
-        resp.raise_for_status()
-        data = resp.json()
-        if not isinstance(data, dict) or "lat" not in data or "lon" not in data:
-            raise ValueError(f"Invalid response from airplanes.live for {icao24}: {data}")
-        return float(data["lat"]), float(data["lon"])
+# async def fetch_airplanes_live_position(icao24: str) -> tuple[float, float]:
+#     url = f"https://api.airplanes.live/api/v1/flight?icao24={icao24}"
+#     async with httpx.AsyncClient() as client:
+#         resp = await client.get(url, timeout=10.0)
+#         resp.raise_for_status()
+#         data = resp.json()
+#         if not isinstance(data, dict) or "lat" not in data or "lon" not in data:
+#             raise ValueError(f"Invalid response from airplanes.live for {icao24}: {data}")
+#         return float(data["lat"]), float(data["lon"])
 
 
 async def _fetch_airplanes_live_positions_async(center_lat: float, center_lon: float, radius_km: float) -> List[AircraftPosition]:
@@ -88,6 +88,7 @@ def _build_positions_from_airplanes_live(ac_items: List[dict]) -> List[AircraftP
             alt_km = float(item.get("alt_geom")) * 0.3048 / 1000 if item.get("alt_geom") is not None else None
         except (TypeError, ValueError):
             alt_km = None
+        # print(f"Item: {item}")
         positions.append(
             AircraftPosition(
                 latitude=float(item["lat"]),
@@ -98,6 +99,9 @@ def _build_positions_from_airplanes_live(ac_items: List[dict]) -> List[AircraftP
                 ident=item.get("flight") or item.get("icao24", ""),
                 mag_heading=float(item["mag_heading"]) if item.get("mag_heading") is not None else None,
                 icao24=item.get("hex", ""),
+                origin_country="",
+                desc=item.get("desc", ""),
+                # 'desc': 'AIRBUS A-321neo'
             )
         )
     return positions
@@ -111,6 +115,7 @@ def _build_positions_from_opensky(states_list: List, center: tuple[float, float]
     """
     positions: List[AircraftPosition] = []
     for state in states_list:
+        # print(f"Item: {state}")
         try:
             d = distance.distance((state.latitude, state.longitude), center).km
         except Exception:
@@ -128,6 +133,7 @@ def _build_positions_from_opensky(states_list: List, center: tuple[float, float]
                     mag_heading=None,
                     icao24=state.icao24,
                     origin_country=getattr(state, "origin_country", None),
+                    desc="",
                 )
             )
     return positions
@@ -195,7 +201,12 @@ def get_flightaware_route(pos: AircraftPosition, dep: str, arr: str) -> tuple[st
         )
         if req_fa.status_code == 200:
             soup = BeautifulSoup(req_fa.text, "lxml")
+            # print(f"Soup: {soup}")
             meta = soup.find("meta", property="og:description")
+            # <meta content="B38M" name="aircrafttype"/>
+            # https://www.flightaware.com/live/aircrafttype/
+            # <meta content="RYR" name="airline"/>
+            # <meta content="https://es.flightaware.com/ajax/flight/map/RYR5ND/20260609/1955Z/LEVT/LEAL/?width=1200&amp;height=630&amp;dpi=2" property="og:image"/>
             if meta and meta.get("content"):
                 flightaware_route = meta["content"].strip()
             origin_meta = soup.find("meta", attrs={"name": "origin"})
@@ -216,33 +227,33 @@ def get_flightaware_route(pos: AircraftPosition, dep: str, arr: str) -> tuple[st
     return dep, arr, flightaware_route, airline_text
 
 
-def resolve_flightaware_labels(flightaware_route: str | None, orig_label: str, dest_label: str) -> tuple[str, str]:
-    if not flightaware_route or dest_label != "Unknown" or "to" not in flightaware_route:
-        return orig_label, dest_label
-    import re
-    from airports import airport_data
-
-    match_orig = re.search(r"from\s+([^\n]+)", flightaware_route, re.IGNORECASE)
-    if not match_orig:
-        return orig_label, dest_label
-
-    candidate = match_orig.group(1).strip()
-    candidate = re.split(r"[:,]\s*", candidate)[0]
-    orig_label = candidate.replace("Int'l de", "").replace("Int'l", "")
-    match_dest = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
-    if match_dest:
-        candidate = match_dest.group(1).strip()
-        candidate = re.split(r"[:,]\s*", candidate)[0]
-        dest_label = candidate.replace("Int'l de", "")
-        orig_label = orig_label.replace(dest_label, "")[:-3]
-        print(
-            f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}"
-        )
-        print(
-            f"[bold]Destination:[/bold] {dest_label} {airport_data.search_by_name(remove_accents(dest_label))}"
-        )
-    else:
-        print(
-            f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}"
-        )
-    return orig_label, dest_label
+# def resolve_flightaware_labels(flightaware_route: str | None, orig_label: str, dest_label: str) -> tuple[str, str]:
+#     if not flightaware_route or dest_label != "Unknown" or "to" not in flightaware_route:
+#         return orig_label, dest_label
+#     import re
+#     from airports import airport_data
+# 
+#     match_orig = re.search(r"from\s+([^\n]+)", flightaware_route, re.IGNORECASE)
+#     if not match_orig:
+#         return orig_label, dest_label
+# 
+#     candidate = match_orig.group(1).strip()
+#     candidate = re.split(r"[:,]\s*", candidate)[0]
+#     orig_label = candidate.replace("Int'l de", "").replace("Int'l", "")
+#     match_dest = re.search(r"to\s+([^\n]+)", flightaware_route, re.IGNORECASE)
+#     if match_dest:
+#         candidate = match_dest.group(1).strip()
+#         candidate = re.split(r"[:,]\s*", candidate)[0]
+#         dest_label = candidate.replace("Int'l de", "")
+#         orig_label = orig_label.replace(dest_label, "")[:-3]
+#         print(
+#             f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}"
+#         )
+#         print(
+#             f"[bold]Destination:[/bold] {dest_label} {airport_data.search_by_name(remove_accents(dest_label))}"
+#         )
+#     else:
+#         print(
+#             f"[bold]Origin:[/bold] {orig_label} {airport_data.search_by_name(remove_accents(orig_label))}"
+#         )
+#     return orig_label, dest_label

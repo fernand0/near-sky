@@ -15,3 +15,4 @@ class AircraftPosition:
     mag_heading: Optional[float] = None
     icao24: str = ""
     origin_country: Optional[str] = None
+    desc: Optional[str] = None
