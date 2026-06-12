@@ -1,4 +1,4 @@
-# near‑opensky
+# near‑sky
 
 A sleek CLI tool that fetches live flight data from the OpenSky Network and visualises it on a radar‑style map.
 
@@ -16,21 +16,21 @@ python -m pip install .
 # Or with uv (fast installer)
 uv pip install .
 ```
-> The package ships a wrapper script `run_near_opensky.sh` that creates a temporary virtual environment on‑the‑fly.
+> The package ships a wrapper script `run_near_sky.sh` that creates a temporary virtual environment on‑the‑fly.
 
 ## 🚀 Quick start
 ```bash
 # Default radius (25 km) around the bundled origin (Basilica del Pilar, Zaragoza)
-near‑opensky
+near‑sky
 
 # Custom radius
-near‑opensky --radius 120
+near‑sky --radius 120
 
 # Generate a radar PNG
-near‑opensky --map-image --output my_radar.png
+near‑sky --map-image --output my_radar.png
 
 # Show destination labels on the radar image
-near‑opensky --map-image --show-destinations
+near‑sky --map-image --show-destinations
 ```
 
 ## 🎯 Configuring the origin
