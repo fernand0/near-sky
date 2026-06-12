@@ -49,6 +49,7 @@ near‑sky --map-image --show-destinations
 | `--map-image` | Generate a static PNG radar image. |
 | `--show-destinations` | Include destination labels on the radar image. |
 | `--output <file>` | Filename for the generated PNG (default **sky_map.png**). |
+| `--opensky` | Use OpenSky API instead of airplanes.live (default). |
 
 ## 🤝 Contributing
 1. Fork the repository.

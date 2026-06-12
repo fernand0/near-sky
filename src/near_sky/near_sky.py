@@ -92,7 +92,7 @@ def display_nearby_aircraft(
     show_map: bool = False,
     generate_image: bool = False,
     output_file: str = "sky_map.png",
-    airplanes_live: bool = False,
+    airplanes_live: bool = True,
 ) -> int:
     """Fetch and display nearby aircraft from OpenSky or airplanes.live.
 
@@ -201,9 +201,9 @@ def main() -> int:
         help="Radius in km for the OpenStreetMap bounding box (default 100)",
     )
     parser.add_argument(
-        "--airplanes-live",
+        "--opensky",
         action="store_true",
-        help="Use airplanes.live API for aircraft position data instead of OpenSky data",
+        help="Use OpenSky API for aircraft position data instead of airplanes.live (default)",
     )
     args = parser.parse_args()
     return display_nearby_aircraft(
@@ -211,7 +211,7 @@ def main() -> int:
         args.map,
         args.map_image,
         args.output,
-        airplanes_live=args.airplanes_live,
+        airplanes_live=not args.opensky,
     )
 
 
