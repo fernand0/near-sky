@@ -6,8 +6,8 @@ sys.path.append(str(Path(__file__).resolve().parents[1] / "src"))
 import math
 import pytest
 
-from near_opensky import origin
-from near_opensky.utils import calculate_bbox
+from near_sky import origin
+from near_sky.utils import calculate_bbox
 
 def test_default_origin():
     assert origin.ORIGIN_LAT == 41.6562

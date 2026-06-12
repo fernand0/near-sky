@@ -5,7 +5,7 @@ A sleek CLI tool that fetches live flight data from the OpenSky Network and visu
 ## ✈️ Features
 - **Live aircraft positions** within a configurable radius.
 - **Static radar image** generation (`--map-image`) with optional destination labels (`--show-destinations`).
-- **Dynamic origin**: edit `src/near_opensky/origin.py` or provide a custom point via CLI.
+- **Dynamic origin**: edit `src/near_sky/origin.py` or provide a custom point via CLI.
 - **Rich terminal output** using `rich` for colourised information.
 - **Extensible** – add new helpers or data sources without touching the core driver.
 
@@ -34,7 +34,7 @@ near‑opensky --map-image --show-destinations
 ```
 
 ## 🎯 Configuring the origin
-- **Edit the constants** in `src/near_opensky/origin.py`:
+- **Edit the constants** in `src/near_sky/origin.py`:
   ```python
   ORIGIN_LAT = 41.6562
   ORIGIN_LON = -0.8805
@@ -48,7 +48,7 @@ near‑opensky --map-image --show-destinations
 | `--map` | Print an OpenStreetMap link for each aircraft. |
 | `--map-image` | Generate a static PNG radar image. |
 | `--show-destinations` | Include destination labels on the radar image. |
-| `--output <file>` | Filename for the generated PNG (default **opensky_map.png**). |
+| `--output <file>` | Filename for the generated PNG (default **sky_map.png**). |
 
 ## 🤝 Contributing
 1. Fork the repository.

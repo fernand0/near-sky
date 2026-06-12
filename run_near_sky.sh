@@ -31,4 +31,4 @@ source "${VENV_DIR}/bin/activate"
 uv pip install -e "${PROJECT_ROOT}"
 
 # Execute the CLI script with any arguments passed to this wrapper
-exec python -m near_opensky.near_opensky "$@"
+exec python -m near_sky.near_sky "$@"

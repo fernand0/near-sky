@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from near_opensky.near_opensky import _apply_interval_filter
+from near_sky.near_sky import _apply_interval_filter
 
 
 def test_apply_interval_filter_mixed_coords():

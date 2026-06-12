@@ -26,4 +26,4 @@ dependencies = [
 ]
 
 [project.scripts]
-near-opensky = "near_opensky.near_opensky:main"
+near-opensky = "near_sky.near_sky:main"

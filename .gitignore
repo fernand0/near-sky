@@ -15,7 +15,7 @@ __pycache__/
 .DS_Store
 *.sqlite3
 
-opensky_map.png
-src/near_opensky/.nearby_cities_cache.json
-src/near_opensky/.airplanes_live_ts
+sky_map.png
+src/near_sky/.nearby_cities_cache.json
+src/near_sky/.airplanes_live_ts
 *.swp

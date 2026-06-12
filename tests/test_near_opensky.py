@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-import near_opensky.near_opensky as near_opensky
+import near_sky.near_sky as near_sky
 
 
 def run_cli(args):
@@ -13,7 +13,7 @@ def run_cli(args):
     env = os.environ.copy()
     env["PYTHONPATH"] = str(Path(__file__).resolve().parents[1] / "src")
     result = subprocess.run(
-        [sys.executable, "-m", "near_opensky.near_opensky"] + args,
+        [sys.executable, "-m", "near_sky.near_sky"] + args,
         capture_output=True,
         text=True,
         env=env,
@@ -69,11 +69,11 @@ def test_airplanes_live_uses_nearest_interval(monkeypatch, capsys):
     def fake_fetch(center_lat, center_lon, radius_km):
         return fake_positions
 
-    monkeypatch.setattr(near_opensky, "fetch_airplanes_live_positions", fake_fetch)
-    monkeypatch.setattr(near_opensky.origin, "ORIGIN_LAT", 0.0)
-    monkeypatch.setattr(near_opensky.origin, "ORIGIN_LON", 0.0)
+    monkeypatch.setattr(near_sky, "fetch_airplanes_live_positions", fake_fetch)
+    monkeypatch.setattr(near_sky.origin, "ORIGIN_LAT", 0.0)
+    monkeypatch.setattr(near_sky.origin, "ORIGIN_LON", 0.0)
 
-    near_opensky.display_nearby_aircraft(100, airplanes_live=True)
+    near_sky.display_nearby_aircraft(100, airplanes_live=True)
     captured = capsys.readouterr()
 
     assert "Showing planes within the nearest interval" in captured.out

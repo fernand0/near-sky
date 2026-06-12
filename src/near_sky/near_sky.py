@@ -91,7 +91,7 @@ def display_nearby_aircraft(
     radius: float,
     show_map: bool = False,
     generate_image: bool = False,
-    output_file: str = "opensky_map.png",
+    output_file: str = "sky_map.png",
     airplanes_live: bool = False,
 ) -> int:
     """Fetch and display nearby aircraft from OpenSky or airplanes.live.
@@ -191,7 +191,7 @@ def main() -> int:
     parser.add_argument(
         "--output",
         type=str,
-        default="opensky_map.png",
+        default="sky_map.png",
         help="Filename for the generated map image",
     )
     parser.add_argument(

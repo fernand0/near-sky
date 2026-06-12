@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from near_opensky.near_opensky import choose_nearest_interval
+from near_sky.near_sky import choose_nearest_interval
 
 
 def test_choose_nearest_interval_prefers_smallest_non_empty_bucket():

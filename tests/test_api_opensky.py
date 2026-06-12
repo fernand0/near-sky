@@ -6,7 +6,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import types
 import pytest
 
-from near_opensky import api
+from near_sky import api
 
 
 class FakeStates:
