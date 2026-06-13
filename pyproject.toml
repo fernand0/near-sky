@@ -1,5 +1,5 @@
 [project]
-name = "near-opensky"
+name = "near-sky"
 version = "0.1.0"
 description = "Hybrid CLI: file reader and OpenSky flight fetcher"
 requires-python = ">=3.10"
