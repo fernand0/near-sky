@@ -75,16 +75,37 @@ def _apply_interval_filter(positions: List[AircraftPosition], center: tuple[floa
 def _print_route_info(dep: str, arr: str, opensky_route: str | None, flightaware_route: str | None, airline_text: str | None, airplanes_live: bool) -> None:
     #if airplanes_live:
     #    return
+    info_text = build_route_info_text(dep, arr, opensky_route, flightaware_route, airline_text)
+    print(info_text)
+
+
+def build_route_text(dep: str, arr: str, opensky_route: str | None, flightaware_route: str | None) -> str:
+    """Return a human-readable route string.
+
+    Priority: `opensky_route` if present, then explicit dep/arr if known,
+    then `flightaware_route`, otherwise a dep ➡️ arr fallback.
+    """
     if opensky_route:
-        print(f"[bold]Route:[/bold] {opensky_route}")
-    elif dep != "Unknown" and arr != "Unknown":
-        print(f"[bold]Route:[/bold] {dep} ➡️  {arr}")
-    elif flightaware_route:
-        print(f"[bold]Route:[/bold] {flightaware_route}")
-    else:
-        print(f"[bold]Route:[/bold] {dep} ➡️  {arr}")
+        return opensky_route
+    if dep != "Unknown" and arr != "Unknown":
+        return f"{dep} ➡️  {arr}"
+    if flightaware_route:
+        return flightaware_route
+    return f"{dep} ➡️  {arr}"
+
+
+def build_route_info_text(dep: str, arr: str, opensky_route: str | None, flightaware_route: str | None, airline_text: str | None) -> str:
+    """Build the full formatted route and airline text for printing.
+
+    Returns a multi-line string containing the same rich-formatted lines
+    that `_print_route_info` previously printed. This allows other modules
+    to reuse the exact output.
+    """
+    route = build_route_text(dep, arr, opensky_route, flightaware_route)
+    parts = [f"[bold]Route:[/bold] {route}"]
     if airline_text:
-        print(f"[bold]Airline:[/bold] {airline_text}")
+        parts.append(f"[bold]Airline:[/bold] {airline_text}")
+    return "\n".join(parts)
 
 
 def display_nearby_aircraft(
